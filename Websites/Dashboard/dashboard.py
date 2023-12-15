@@ -2,29 +2,28 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import schedule
 import json
 import paho.mqtt.client as mqtt
 import datetime
 import calendar
+import os
+
+if not os.path.exists("images"):
+    os.mkdir("images")
 
 siteId = '656c954bd3518eb7af0270f3'
-enableAlert = False
-if 'alert' not in st.session_state:
-    st.session_state.alert = 'no'
 
 def on_message(client, userdata, message):
-    global alert
     global enableAlert
-    msg = json.loads(message.payload.decode())
-    print(f'eA: {enableAlert}, >0: {msg["counter"] > 0}')
-    if(enableAlert and msg['counter'] > 0):
-        st.session_state.alert = 'yes'
-        print('ALERTA!')
-        st.rerun()
+    # msg = json.loads(message.payload.decode())
+    # print(msg)
+    # # print(f'eA: {enableAlert}, >0: {msg["counter"] > 0}')
+    # if(enableAlert and msg['counter'] > 0):
+    #     print('ALERTA!')
+    #     client.publish(f'/{siteId}/alerts', "ALERTA!") # publish to site alerts topic
 
 client = mqtt.Client()  
-client.on_message = on_message
+# client.on_message = on_message
 
 def mqttConnect(): # mqtt broker connection
     global siteId
@@ -40,7 +39,7 @@ def mqttConnect(): # mqtt broker connection
 
     client.publish(f'/{siteId}/logs', "Client MQTT connected!") # publish to site logs topic
 
-    client.subscribe('/logs')
+    client.subscribe(f'/{siteId}/cams/')
 
     # client.loop_start()
 
@@ -80,12 +79,13 @@ dateSelect = st.date_input(
 # GET DATA
 data_url = f'http://146.235.53.46:8000/contagem/{siteId}'
 
+@st.cache_data(ttl=60)
 def get_data() -> pd.DataFrame():
     return pd.read_json(data_url)
 
-data_load_state = st.text('Carregando dados...')
 data = get_data()
-data_load_state.text('')
+data['created_at'] = data['created_at'].dt.tz_convert('America/Belem')
+lastUpdate = data["created_at"][len(data)-1]
 
 dataTemp = pd.DataFrame()
 dataTemp['created_at'] = pd.to_datetime(data['created_at']).dt.date
@@ -101,9 +101,6 @@ enableAlert = st.toggle('Ativar alertas')
 if(enableAlert):
     st.write('Alertas ativados!')
 
-if(st.session_state.alert == 'yes'):
-    st.write('ALERTA ACIONADO!!!!')
-
 # ALL SECTORS GRAPH
 st.subheader('Visualização Geral')
 
@@ -117,6 +114,7 @@ countLast = np.sum(lastAllSectionsCount['contagem'])
 st.metric("Pessoas no estabelecimento", countLast, round(countLast - countMean))
 
 place_bar = px.bar(data, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500, color='setor')
+# place_bar.write_image('./images/teste2.png')
 st.plotly_chart(place_bar)
 
 
@@ -126,13 +124,17 @@ st.subheader('Visualização Setorial')
 # Filter site sections (cams)
 section_filter = st.selectbox("Selecione um setor", pd.unique(data["setor"]))
 data_setor = data[data["setor"] == section_filter]
-
-data_setor = data[data["setor"] == section_filter]
+# lastUpdateSec = data_setor["created_at"][len(data_setor)-1]
 
 st.metric("Pessoas no setor", data_setor['contagem'].iloc[-1], str(data_setor['contagem'].iloc[-1] - data_setor['contagem'].iloc[-2]))
 
 sector_bar = px.bar(data_setor, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500)
+# sector_bar.write_image('./images/teste.png')
 st.plotly_chart(sector_bar)
+
+st.markdown(f'Ultima atualização dos dados: {lastUpdate.day}/{lastUpdate.month}/{lastUpdate.year} às {lastUpdate.hour}:{lastUpdate.minute}')
+# st.markdown(f'Ultima atualização do setor: {lastUpdateSec.day}/{lastUpdateSec.month}/{lastUpdateSec.year} às {lastUpdateSec.hour}:{lastUpdateSec.minute}')
+
 
 # st.subheader('Raw data')
 # st.write(len(data_setor))
