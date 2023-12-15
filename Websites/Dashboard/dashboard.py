@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import json
+import matplotlib.pyplot as plt
 import paho.mqtt.client as mqtt
 import datetime
 import calendar
@@ -113,10 +113,16 @@ countLast = np.sum(lastAllSectionsCount['contagem'])
 
 st.metric("Pessoas no estabelecimento", countLast, round(countLast - countMean))
 
-place_bar = px.bar(data, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500, color='setor')
-# place_bar.write_image('./images/teste2.png')
-st.plotly_chart(place_bar)
-
+tab1, tab2, tab3 = st.tabs(["Barras", "Linha", "Pizza"])
+with tab1:
+    place_bar = px.bar(data, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500, color='setor')
+    st.plotly_chart(place_bar)
+with tab2:
+    place_bar = px.line(data, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500, color='setor')
+    st.plotly_chart(place_bar)
+with tab3:
+    place_bar = px.pie(data, values='contagem', names='setor', height=500)
+    st.plotly_chart(place_bar)
 
 # GRAPH BY SECTOR
 st.subheader('Visualização Setorial')
@@ -128,9 +134,13 @@ data_setor = data[data["setor"] == section_filter]
 
 st.metric("Pessoas no setor", data_setor['contagem'].iloc[-1], str(data_setor['contagem'].iloc[-1] - data_setor['contagem'].iloc[-2]))
 
-sector_bar = px.bar(data_setor, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500)
-# sector_bar.write_image('./images/teste.png')
-st.plotly_chart(sector_bar)
+tab1, tab2 = st.tabs(["Barras", "Linha"])
+with tab1:
+    sector_bar = px.bar(data_setor, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500)
+    st.plotly_chart(sector_bar)
+with tab2:
+    sector_bar = px.line(data_setor, x='created_at', y='contagem', labels={'created_at':'Data/Hora', 'contagem':'Pessoas'}, height=500)
+    st.plotly_chart(sector_bar)
 
 st.markdown(f'Ultima atualização dos dados: {lastUpdate.day}/{lastUpdate.month}/{lastUpdate.year} às {lastUpdate.hour}:{lastUpdate.minute}')
 # st.markdown(f'Ultima atualização do setor: {lastUpdateSec.day}/{lastUpdateSec.month}/{lastUpdateSec.year} às {lastUpdateSec.hour}:{lastUpdateSec.minute}')
