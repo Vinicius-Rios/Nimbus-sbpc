@@ -7,9 +7,9 @@ import paho.mqtt.client as mqtt
 import datetime
 import calendar
 import os
+import io
 
-if not os.path.exists("images"):
-    os.mkdir("images")
+buffer = io.BytesIO()
 
 siteId = '656c954bd3518eb7af0270f3'
 
@@ -94,6 +94,16 @@ finish = dateSelect[1] if len(dateSelect) > 1 else dateSelect[0]
 mask = (dataTemp['created_at'] >= start) & (dataTemp['created_at'] <= finish)
 data = data.loc[mask]
 
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    # Write each dataframe to a different worksheet.
+    excelData = data
+    excelData['created_at'] = excelData['created_at'].dt.tz_localize(None)
+    excelData.drop(['updated_at', '_id', 'estabelecimentoId'], inplace=True, axis=1)
+    data.to_excel(writer, sheet_name='Contagem de Pessoas')
+
+    # Close the Pandas Excel writer and output the Excel file to the buffer
+    writer.close()
+
 # ALERTS
 st.subheader('Alertas')
 enableAlert = st.toggle('Ativar alertas')
@@ -123,6 +133,13 @@ with tab2:
 with tab3:
     place_bar = px.pie(data, values='contagem', names='setor', height=500)
     st.plotly_chart(place_bar)
+
+st.download_button(
+        label="Exportar Dados",
+        data=buffer,
+        file_name="contagem.xlsx",
+        mime="application/vnd.ms-excel"
+    )
 
 # GRAPH BY SECTOR
 st.subheader('Visualização Setorial')
