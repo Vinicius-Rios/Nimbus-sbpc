@@ -36,6 +36,7 @@ def generate_json(sector):
     return json_str
 
 def callback_function(sector):
+    mqttClient = mqttConnection()
     publishContent = generate_json(sector)
     topic = f'/{siteTopic}/cams/{sector}'
     # print(f'{topic} -> {publishContent}')
@@ -50,7 +51,6 @@ def simulateData():
 siteTopic = '656c954bd3518eb7af0270f3'
 publishInterval = 60*5 # interval in seconds to publish human detection simulation
 maxDifference = 5
-mqttClient = mqttConnection()
 
 
 schedule.every(publishInterval).seconds.do(simulateData)
